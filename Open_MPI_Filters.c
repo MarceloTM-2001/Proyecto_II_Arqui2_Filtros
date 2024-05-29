@@ -160,22 +160,37 @@ int main(int argc, char *argv[]) {
     // Calcular los límites para el procesamiento
     int start = rank * rows_per_process;
     int end = start + localHeight;
-    
-    if (rank == 1) {
-        printf("Hola soy esclavo 1\n");
-        gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
-    } else if (rank == 2) {
-        printf("Hola soy esclavo 2\n");
-        gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
-    } else if (rank==3){
-        printf("Hola soy esclavo 3\n");
-        gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+    if(!strcmp(argv[1],"grey")){
+        if (rank == 1) {
+            printf("Hola soy esclavo grey 1\n");
+            gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+        } else if (rank == 2) {
+            printf("Hola soy esclavo grey 2\n");
+            gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+        } else if (rank==3){
+            printf("Hola soy esclavo grey 3\n");
+            gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+        }
+        else{
+            printf("Hola soy esclavo 4\n");
+            gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+        }
+    }else{
+        if (rank == 1) {
+            printf("Hola soy esclavo blur 1\n");
+            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+        } else if (rank == 2) {
+            printf("Hola soy esclavo blur 2\n");
+            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+        } else if (rank==3){
+            printf("Hola soy esclavo blur 3\n");
+            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+        }
+        else{
+            printf("Hola soy esclavo blur 4\n");
+            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+        }
     }
-    else{
-        printf("Hola soy esclavo 4\n");
-        gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
-    }
-
     unsigned char *newData = NULL;
     if (rank == 0) {
         newData = (unsigned char *)malloc(bmpInfoHeader.imageSize);
@@ -205,6 +220,4 @@ int main(int argc, char *argv[]) {
     MPI_Finalize();
     return 0;
 }
-
-
 
