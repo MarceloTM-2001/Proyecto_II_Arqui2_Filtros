@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
     unsigned char *data = NULL;
 
     if (rank == 0) {
-        FILE *inputFile = fopen("goku.bmp", "rb");
+        FILE *inputFile = fopen("View.bmp", "rb");
         if (inputFile == NULL) {
             perror("Error abriendo el archivo de entrada");
             MPI_Abort(MPI_COMM_WORLD, 1);
@@ -144,15 +144,36 @@ int main(int argc, char *argv[]) {
 
     MPI_Scatter(data, localSize, MPI_BYTE, subData, localSize, MPI_BYTE, 0, MPI_COMM_WORLD);
 
-    int start = rank * localHeight;
-    int end = (rank + 1) * localHeight;
+    // Calcular el número de filas que cada proceso debe procesar
+    int rows_per_process = height / size;
+    int remaining_rows = height % size;
 
+    // Ajustar los límites para el último proceso
+    if (rank == size - 1) {
+        // El último proceso toma las filas restantes
+        localHeight = rows_per_process + remaining_rows;
+    } else {
+        // Los demás procesos toman el número igual de filas
+        localHeight = rows_per_process;
+    }
+
+    // Calcular los límites para el procesamiento
+    int start = rank * rows_per_process;
+    int end = start + localHeight;
+    
     if (rank == 1) {
+        printf("Hola soy esclavo 1\n");
         gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
     } else if (rank == 2) {
-        blur_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
-    } else {
-        memcpy(subDataProcessed, subData, localSize);
+        printf("Hola soy esclavo 2\n");
+        gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+    } else if (rank==3){
+        printf("Hola soy esclavo 3\n");
+        gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+    }
+    else{
+        printf("Hola soy esclavo 4\n");
+        gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
     }
 
     unsigned char *newData = NULL;
@@ -175,14 +196,15 @@ int main(int argc, char *argv[]) {
         fclose(outputFile);
         free(newData);
     }
-
-    free(subData);
-    free(subDataProcessed);
     if (rank == 0) {
+        free(subData);
+        free(subDataProcessed);
         free(data);
     }
 
     MPI_Finalize();
     return 0;
 }
+
+
 
