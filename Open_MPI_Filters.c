@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <mpi.h>
 
 // Estructura para el encabezado de un archivo BMP
@@ -79,7 +80,8 @@ void blur_conversion(unsigned char *data, BMPInfoHeader infoHeader, unsigned cha
                 float sum = 0.0;
                 for (int i = -1; i <= 1; i++) {
                     for (int j = -1; j <= 1; j++) {
-                        sum += kernel[i + 1][j + 1] * data[((y + i) * width + (x + j)) * 3 + c];
+                        int pos = ((y + i) * width + (x + j)) * 3 + c;
+                        sum += kernel[i + 1][j + 1] * data[pos];
                     }
                 }
                 newdata[(y * width + x) * 3 + c] = (unsigned char)sum;
@@ -94,14 +96,6 @@ int main(int argc, char *argv[]) {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    if (size != 4) {
-        if (rank == 0) {
-            printf("Este programa debe ejecutarse con 4 procesos.\n");
-        }
-        MPI_Finalize();
-        return 1;
-    }
 
     BMPHeader bmpHeader;
     BMPInfoHeader bmpInfoHeader;
@@ -139,32 +133,33 @@ int main(int argc, char *argv[]) {
     MPI_Bcast(&bmpHeader, sizeof(BMPHeader), MPI_BYTE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&bmpInfoHeader, sizeof(BMPInfoHeader), MPI_BYTE, 0, MPI_COMM_WORLD);
 
-    int dataSize = bmpInfoHeader.imageSize / size;
-    unsigned char *subData = (unsigned char *)malloc(dataSize);
+    int height = bmpInfoHeader.height;
+    int width = bmpInfoHeader.width;
+    int rowSize = width * 3;
+    int localHeight = height / size;
+    int localSize = localHeight * rowSize;
 
-    MPI_Scatter(data, dataSize, MPI_BYTE, subData, dataSize, MPI_BYTE, 0, MPI_COMM_WORLD);
+    unsigned char *subData = (unsigned char *)malloc(localSize);
+    unsigned char *subDataProcessed = (unsigned char *)malloc(localSize);
 
-    unsigned char *subDataProcessed = (unsigned char *)malloc(dataSize);
+    MPI_Scatter(data, localSize, MPI_BYTE, subData, localSize, MPI_BYTE, 0, MPI_COMM_WORLD);
 
-    int height = bmpInfoHeader.height / size;
-    int start = rank * height;
-    int end = (rank + 1) * height;
+    int start = rank * localHeight;
+    int end = (rank + 1) * localHeight;
 
     if (rank == 1) {
-        gray_conversion(subData, bmpInfoHeader, subDataProcessed, start, end);
+        gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
     } else if (rank == 2) {
-        blur_conversion(subData, bmpInfoHeader, subDataProcessed, start, end);
-    } else if (rank == 3) {
-        // Any additional processing can be added here
-        // For now, let's just copy the data
-        memcpy(subDataProcessed, subData, dataSize);
+        blur_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+    } else {
+        memcpy(subDataProcessed, subData, localSize);
     }
 
     unsigned char *newData = NULL;
     if (rank == 0) {
         newData = (unsigned char *)malloc(bmpInfoHeader.imageSize);
     }
-    MPI_Gather(subDataProcessed, dataSize, MPI_BYTE, newData, dataSize, MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Gather(subDataProcessed, localSize, MPI_BYTE, newData, localSize, MPI_BYTE, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
         FILE *outputFile = fopen("Processed_Image.bmp", "wb");
@@ -190,3 +185,4 @@ int main(int argc, char *argv[]) {
     MPI_Finalize();
     return 0;
 }
+
