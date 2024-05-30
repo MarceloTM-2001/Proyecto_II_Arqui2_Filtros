@@ -142,9 +142,9 @@ int main(int argc, char *argv[]) {
     unsigned char *subData = (unsigned char *)malloc(localSize);
     unsigned char *subDataProcessed = (unsigned char *)malloc(localSize);
 
-    MPI_Scatter(data, localSize, MPI_BYTE, subData, localSize, MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Scatter(data, localSize, MPI_UNSIGNED_CHAR, subData, localSize, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
-    // Calcular el número de filas que cada proceso debe procesar
+    // Calcular el número de filas que cada proceso debe procesarstart
     int rows_per_process = height / size;
     int remaining_rows = height % size;
 
@@ -161,7 +161,10 @@ int main(int argc, char *argv[]) {
     int start = rank * rows_per_process;
     int end = start + localHeight;
     if(!strcmp(argv[1],"grey")){
-        if (rank == 1) {
+        if(rank==0){
+            printf("Hola soy master trabajando\n");
+            gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight); 
+        }else if (rank == 1) {
             printf("Hola soy esclavo grey 1\n");
             gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
         } else if (rank == 2) {
@@ -170,32 +173,43 @@ int main(int argc, char *argv[]) {
         } else if (rank==3){
             printf("Hola soy esclavo grey 3\n");
             gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
-        }
-        else{
-            printf("Hola soy esclavo 4\n");
+        }else if (rank==4){
+            printf("Hola soy esclavo grey 4\n");
             gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+        }else if (rank==5){
+            printf("Hola soy esclavo grey 5\n");
+            gray_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+        }else {
+            memcpy(subDataProcessed, subData, localSize);
         }
     }else{
-        if (rank == 1) {
+        if(rank==0){
+            printf("Hola soy master trabajando\n");
+            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 1, localHeight-1);
+        }else if(rank==1){
             printf("Hola soy esclavo blur 1\n");
-            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 1, localHeight-1);
         } else if (rank == 2) {
             printf("Hola soy esclavo blur 2\n");
-            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 1, localHeight-1);
         } else if (rank==3){
             printf("Hola soy esclavo blur 3\n");
-            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
-        }
-        else{
+            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 1, localHeight-1);
+        }else if (rank==4){
             printf("Hola soy esclavo blur 4\n");
-            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 0, localHeight);
+            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 1, localHeight-1);
+        }else if (rank==5){
+            printf("Hola soy esclavo blur 5\n");
+            blur_conversion(subData, bmpInfoHeader, subDataProcessed, 1, localHeight-1);
+        }else{
+            memcpy(subDataProcessed, subData, localSize);
         }
     }
     unsigned char *newData = NULL;
     if (rank == 0) {
         newData = (unsigned char *)malloc(bmpInfoHeader.imageSize);
     }
-    MPI_Gather(subDataProcessed, localSize, MPI_BYTE, newData, localSize, MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Gather(subDataProcessed, localSize, MPI_UNSIGNED_CHAR, newData, localSize, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
         FILE *outputFile = fopen("Processed_Image.bmp", "wb");
